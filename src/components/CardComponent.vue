@@ -46,6 +46,11 @@ export default defineComponent({
     background-color: #f4f4f4f4;
     cursor: pointer;
   }
+  @media (max-width: 440px) {
+    .card {
+      width: 150px;
+    }
+  }
   .title {
     font-size: 16px;
     height: 18px;

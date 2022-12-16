@@ -1,12 +1,13 @@
 <script lang="ts">
 import api from "@/services/api";
 import axios from "axios";
-import {defineComponent} from "vue";
+import {defineComponent, ref} from "vue";
 import type {PokeTypesProps} from "@/models/PokeTypesPropsModel";
 import CardComponent from "@/components/CardComponent.vue";
 import HeaderComponent from "@/components/HeaderComponent.vue";
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
+import InputText from "primevue/inputtext";
 
 export default defineComponent({
   name: 'App',
@@ -14,7 +15,8 @@ export default defineComponent({
     CardComponent,
     HeaderComponent,
     Dialog,
-    Button
+    Button,
+    InputText
   },
   data:() => {
     return {
@@ -22,13 +24,18 @@ export default defineComponent({
       loading: true,
       pokeList: [] as PokeTypesProps[],
       display: false,
-      selectedPoke: {} as PokeTypesProps
+      selectedPoke: {} as PokeTypesProps,
+      searchText: ref(""),
+      nextLink: null as string | null,
+      previousLink: null as string | null
     }
   },
   methods: {
       async getPokeList() {
       try {
-        const resp = await api.get(`pokemon?limit=1000&offset=0.`)
+        const resp = await api.get(`pokemon?limit=100&offset=0.`)
+        this.previousLink = resp.data.previous
+        this.nextLink = resp.data.next
         this.results = resp.data.results
         for (let i = 0; i <= this.results.length; i++ ){
           const poke: PokeTypesProps | undefined = await this.getPokeProprieties(this.results[i]?.url)
@@ -42,6 +49,70 @@ export default defineComponent({
       }
       catch (error) {
         console.error(error)
+      }
+    },
+    async geNextList() {
+      try {
+        const resp = await axios.get(this.nextLink as string)
+        this.previousLink = resp.data.previous
+        this.nextLink = resp.data.next
+        this.results = resp.data.results
+        this.pokeList = []
+        for (let i = 0; i <= this.results.length; i++ ){
+          const poke: PokeTypesProps | undefined = await this.getPokeProprieties(this.results[i]?.url)
+          this.pokeList.push(poke)
+          if (i >= this.results.length){
+            this.loading = false;
+            console.log('fim do loop')
+          }
+        }
+        this.loading = false;
+      }
+      catch (error) {
+        console.error(error)
+      }
+    },
+    async getPreviousList() {
+      try {
+        const resp = await axios.get(this.previousLink as string)
+        this.previousLink = resp.data.previous
+        this.nextLink = resp.data.next
+        this.results = resp.data.results
+        this.pokeList = []
+        for (let i = 0; i <= this.results.length; i++ ){
+          const poke: PokeTypesProps | undefined = await this.getPokeProprieties(this.results[i]?.url)
+          this.pokeList.push(poke)
+          if (i >= this.results.length){
+            this.loading = false;
+            console.log('fim do loop')
+          }
+        }
+        this.loading = false;
+      }
+      catch (error) {
+        console.error(error)
+      }
+    },
+    async getPokemon() {
+        if (this.searchText == ""){
+          await this.getPokeList()
+          return;
+        }
+      try {
+        this.nextLink = null
+        this.previousLink = null
+        const resp = await api.get(`pokemon/${this.searchText}/`)
+        let list = resp.data
+        if (list) {
+          this.pokeList = []
+          this.pokeList.push(list)
+        } else {
+          this.pokeList = []
+        }
+      }
+      catch (error) {
+        console.error(error)
+        this.pokeList = []
       }
     },
     async getPokeProprieties (url: string) {
@@ -63,7 +134,11 @@ export default defineComponent({
 
 <template>
   <HeaderComponent headTitle="PokeVueDex" />
-  <div class="card-container" >  
+  <div class="container-search" >
+    <InputText v-model="searchText" placeholder="Buscar Pokemon" @keydown.enter="getPokemon" />
+    <Button label="Buscar" @click="getPokemon" />
+  </div>
+  <div class="card-container" >
     <CardComponent 
         v-if="pokeList.length > 0" 
         v-for="(poke, index) in pokeList" 
@@ -94,13 +169,17 @@ export default defineComponent({
       </template>
     </Dialog>
   </div>
+  <div class="container-search" v-show="previousLink || nextLink" >
+    <Button label="Anterior" :disabled="previousLink === null" @click="getPreviousList"  />
+    <Button label="Próximo" :disabled="nextLink === null" @click="geNextList" />
+  </div>
 
 </template>
 
 <style scoped>
 .card-container {
   width: 100%;
-  min-height: 100vh;
+  min-height: 50vh;
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
@@ -119,16 +198,18 @@ export default defineComponent({
   border-radius: 10px;
   min-width: 200px;
   padding-bottom: 10px;
+  color: #000000;
 }
 .content-details ul p{
   font-weight: bold;
   text-align: left;
 }
-.btn-close-modal {
-  border: none;
-  border-radius: 5px;
-  color: #FFFFFF;
-  
+.container-search {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 5px;
+  gap: 10px;
 }
 
 </style>
