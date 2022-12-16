@@ -34,6 +34,7 @@ export default defineComponent({
       async getPokeList() {
       try {
         const resp = await api.get(`pokemon?limit=100&offset=0.`)
+        this.pokeList = []
         this.previousLink = resp.data.previous
         this.nextLink = resp.data.next
         this.results = resp.data.results
